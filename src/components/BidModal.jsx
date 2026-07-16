@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { STAGES } from '../lib/constants';
 import { fmtDateTime, todayISO } from '../lib/format';
+import { useAuth } from '../context/AuthContext';
 
 const emptyForm = {
   job_title: '',
@@ -19,6 +20,7 @@ const emptyForm = {
 };
 
 export default function BidModal({ bid, settings, onClose, onSave, onDelete }) {
+  const { profile } = useAuth();
   const [form, setForm] = useState(emptyForm);
   const [pendingLog, setPendingLog] = useState([]);
   const [logInput, setLogInput] = useState('');
@@ -54,7 +56,7 @@ export default function BidModal({ bid, settings, onClose, onSave, onDelete }) {
   function addLogEntry() {
     const text = logInput.trim();
     if (!text) return;
-    setPendingLog((p) => [...p, { author: 'Saman', text, created_at: new Date().toISOString() }]);
+    setPendingLog((p) => [...p, { author: profile?.full_name || 'Team', text, created_at: new Date().toISOString() }]);
     setLogInput('');
   }
 
@@ -201,7 +203,7 @@ export default function BidModal({ bid, settings, onClose, onSave, onDelete }) {
                 className="accent-accent"
               />
               <label htmlFor="needs-escalation" className="text-sm font-medium text-white">
-                Needs Ali's input
+                Needs admin review
               </label>
             </div>
 
@@ -244,7 +246,7 @@ export default function BidModal({ bid, settings, onClose, onSave, onDelete }) {
                 combinedLog.map((l, i) => (
                   <div key={i} className="bg-surface2 border border-border rounded-lg px-3 py-2 text-xs">
                     <div className="font-mono text-[10.5px] text-muted mb-1">
-                      {fmtDateTime(l.created_at)} · {l.author || 'Saman'}
+                      {fmtDateTime(l.created_at)} · {l.author || 'Team'}
                     </div>
                     {l.text}
                   </div>

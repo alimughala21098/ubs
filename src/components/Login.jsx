@@ -3,10 +3,8 @@ import { supabase } from '../supabaseClient';
 import { useToast } from '../context/ToastContext';
 
 export default function Login() {
-  const [mode, setMode] = useState('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
   const [busy, setBusy] = useState(false);
   const { showToast } = useToast();
 
@@ -14,18 +12,8 @@ export default function Login() {
     e.preventDefault();
     setBusy(true);
     try {
-      if (mode === 'signin') {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { data: { full_name: fullName, role: 'bidder' } }
-        });
-        if (error) throw error;
-        showToast('Account created — check your inbox to confirm your email.');
-      }
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
     } catch (err) {
       showToast(err.message || 'Something went wrong signing in.', 'error');
     } finally {
@@ -47,25 +35,12 @@ export default function Login() {
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          {mode === 'signup' && (
-            <div>
-              <label className="block text-xs font-semibold text-muted uppercase tracking-wide mb-1">
-                Full name
-              </label>
-              <input
-                type="text"
-                required
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                className="w-full bg-surface2 border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
-              />
-            </div>
-          )}
           <div>
             <label className="block text-xs font-semibold text-muted uppercase tracking-wide mb-1">Email</label>
             <input
               type="email"
               required
+              autoFocus
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full bg-surface2 border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
@@ -76,7 +51,6 @@ export default function Login() {
             <input
               type="password"
               required
-              minLength={6}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full bg-surface2 border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
@@ -88,16 +62,14 @@ export default function Login() {
             disabled={busy}
             className="mt-2 bg-accent hover:bg-accent-light transition-colors text-white font-semibold rounded-xl py-2.5 text-sm disabled:opacity-60"
           >
-            {busy ? 'Please wait…' : mode === 'signin' ? 'Sign in' : 'Create account'}
+            {busy ? 'Please wait…' : 'Sign in'}
           </button>
         </form>
 
-        <button
-          className="mt-4 text-xs text-muted hover:text-accent-light underline underline-offset-2 mx-auto block"
-          onClick={() => setMode(mode === 'signin' ? 'signup' : 'signin')}
-        >
-          {mode === 'signin' ? "New to the team? Create an account" : 'Already have an account? Sign in'}
-        </button>
+        <p className="mt-5 text-xs text-muted text-center leading-relaxed">
+          Accounts are created by an admin. If you don't have a login yet, ask your admin to add
+          you from Settings → Team.
+        </p>
       </div>
     </div>
   );

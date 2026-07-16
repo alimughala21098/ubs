@@ -1,5 +1,6 @@
 -- FAR Tech — Upwork Bid Pipeline
 -- Run this in the Supabase SQL editor (Project -> SQL Editor -> New query)
+-- Safe to re-run: uses create-if-not-exists / drop-and-recreate patterns throughout.
 
 -- ---------------------------------------------------------------
 -- Extensions
@@ -26,24 +27,36 @@ exception when duplicate_object then null; end $$;
 
 -- ---------------------------------------------------------------
 -- Profiles (extends auth.users with a role)
--- Saman = 'bidder', Ali Mirza / Rohaan Mughal = 'admin'
+-- Two roles:
+--   admin  — sees every bid, manages Settings, creates/edits/removes
+--            teammate accounts from Settings -> Team
+--   bidder — sees and manages only the bids they personally created
+-- Accounts are created exclusively by an admin (Settings -> Team).
+-- There is no public self-signup — Login.jsx is sign-in only.
 -- ---------------------------------------------------------------
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   full_name text not null,
+  email text,
   role user_role not null default 'bidder',
   created_at timestamptz not null default now()
 );
 
--- Auto-create a profile row whenever a new auth user signs up
+alter table public.profiles add column if not exists email text;
+
+-- Auto-create a profile row whenever a new auth user is created.
+-- Admin-created users (via the manage-employee edge function using
+-- supabase.auth.admin.createUser) pass full_name/role/email through
+-- user_metadata, so this trigger works the same way for every account.
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin
-  insert into public.profiles (id, full_name, role)
+  insert into public.profiles (id, full_name, role, email)
   values (
     new.id,
     coalesce(new.raw_user_meta_data->>'full_name', new.email),
-    coalesce((new.raw_user_meta_data->>'role')::user_role, 'bidder')
+    coalesce((new.raw_user_meta_data->>'role')::user_role, 'bidder'),
+    new.email
   );
   return new;
 end;
@@ -54,8 +67,24 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
 
+-- Looks up the CURRENT signed-in user's role. security definer so it
+-- bypasses the profiles table's own RLS — this is what lets RLS policies
+-- below check "is this caller an admin?" without infinite recursion.
+create or replace function public.current_user_role()
+returns user_role
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select role from public.profiles where id = auth.uid();
+$$;
+
 -- ---------------------------------------------------------------
 -- Bids (the core pipeline table)
+-- created_by identifies which bidder owns the bid. Kept nullable with
+-- "on delete set null" so removing a teammate later never deletes or
+-- blocks deletion of their historical bids.
 -- ---------------------------------------------------------------
 create table if not exists public.bids (
   id uuid primary key default gen_random_uuid(),
@@ -73,14 +102,23 @@ create table if not exists public.bids (
   stage bid_stage not null default 'lead',
   needs_escalation boolean not null default false,
   notes text,
-  created_by uuid references public.profiles(id),
+  created_by uuid references public.profiles(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
+-- Migrate an existing bids.created_by FK that didn't have "on delete set null"
+do $$ begin
+  alter table public.bids drop constraint if exists bids_created_by_fkey;
+  alter table public.bids
+    add constraint bids_created_by_fkey
+    foreign key (created_by) references public.profiles(id) on delete set null;
+exception when others then null; end $$;
+
 create index if not exists bids_stage_idx on public.bids (stage);
 create index if not exists bids_date_submitted_idx on public.bids (date_submitted);
 create index if not exists bids_needs_escalation_idx on public.bids (needs_escalation);
+create index if not exists bids_created_by_idx on public.bids (created_by);
 
 -- Keep updated_at current on every row change
 create or replace function public.touch_updated_at()
@@ -102,7 +140,7 @@ create trigger bids_touch_updated_at
 create table if not exists public.bid_logs (
   id uuid primary key default gen_random_uuid(),
   bid_id uuid not null references public.bids(id) on delete cascade,
-  author text not null default 'Saman',
+  author text not null default 'Team',
   text text not null,
   created_at timestamptz not null default now()
 );
@@ -110,7 +148,7 @@ create table if not exists public.bid_logs (
 create index if not exists bid_logs_bid_id_idx on public.bid_logs (bid_id);
 
 -- ---------------------------------------------------------------
--- Settings (single row, editable by admins)
+-- Settings (single row, editable by admins only)
 -- ---------------------------------------------------------------
 create table if not exists public.settings (
   id int primary key default 1,
@@ -133,60 +171,101 @@ create trigger settings_touch_updated_at
 
 -- ---------------------------------------------------------------
 -- Row Level Security
--- Any signed-in FAR Tech team member (bidder or admin) can read/write
--- the shared board. Tighten this further if you add more teams/orgs.
+-- Admins: full read/write on bids, bid_logs, all profiles, settings.
+-- Bidders: read/write only their OWN bids and bid_logs on those bids;
+-- can read their own profile plus (for display purposes) teammates'
+-- names are not exposed to bidders — only admins see the full roster.
 -- ---------------------------------------------------------------
 alter table public.profiles enable row level security;
 alter table public.bids enable row level security;
 alter table public.bid_logs enable row level security;
 alter table public.settings enable row level security;
 
+-- profiles: everyone can read their own row; admins can read every row
 drop policy if exists "profiles readable by team" on public.profiles;
-create policy "profiles readable by team"
+drop policy if exists "profiles readable by self or admin" on public.profiles;
+create policy "profiles readable by self or admin"
   on public.profiles for select
-  using (auth.role() = 'authenticated');
+  using (id = auth.uid() or public.current_user_role() = 'admin');
 
+-- profiles are otherwise only written by the manage-employee edge
+-- function, which uses the service role key and bypasses RLS entirely.
+
+-- bids: admin sees/edits everything; bidder sees/edits only their own
 drop policy if exists "bids readable by team" on public.bids;
-create policy "bids readable by team"
-  on public.bids for select
-  using (auth.role() = 'authenticated');
-
 drop policy if exists "bids writable by team" on public.bids;
-create policy "bids writable by team"
-  on public.bids for all
-  using (auth.role() = 'authenticated')
-  with check (auth.role() = 'authenticated');
+drop policy if exists "bids select own or admin" on public.bids;
+drop policy if exists "bids insert own or admin" on public.bids;
+drop policy if exists "bids update own or admin" on public.bids;
+drop policy if exists "bids delete own or admin" on public.bids;
 
+create policy "bids select own or admin"
+  on public.bids for select
+  using (public.current_user_role() = 'admin' or created_by = auth.uid());
+
+create policy "bids insert own or admin"
+  on public.bids for insert
+  with check (public.current_user_role() = 'admin' or created_by = auth.uid());
+
+create policy "bids update own or admin"
+  on public.bids for update
+  using (public.current_user_role() = 'admin' or created_by = auth.uid())
+  with check (public.current_user_role() = 'admin' or created_by = auth.uid());
+
+create policy "bids delete own or admin"
+  on public.bids for delete
+  using (public.current_user_role() = 'admin' or created_by = auth.uid());
+
+-- bid_logs: follow the same ownership as the parent bid
 drop policy if exists "logs readable by team" on public.bid_logs;
-create policy "logs readable by team"
-  on public.bid_logs for select
-  using (auth.role() = 'authenticated');
-
 drop policy if exists "logs writable by team" on public.bid_logs;
-create policy "logs writable by team"
-  on public.bid_logs for all
-  using (auth.role() = 'authenticated')
-  with check (auth.role() = 'authenticated');
+drop policy if exists "logs select via bid access" on public.bid_logs;
+drop policy if exists "logs insert via bid access" on public.bid_logs;
 
+create policy "logs select via bid access"
+  on public.bid_logs for select
+  using (
+    exists (
+      select 1 from public.bids
+      where bids.id = bid_logs.bid_id
+        and (public.current_user_role() = 'admin' or bids.created_by = auth.uid())
+    )
+  );
+
+create policy "logs insert via bid access"
+  on public.bid_logs for insert
+  with check (
+    exists (
+      select 1 from public.bids
+      where bids.id = bid_logs.bid_id
+        and (public.current_user_role() = 'admin' or bids.created_by = auth.uid())
+    )
+  );
+
+-- settings: everyone signed in can read; only admins can update
 drop policy if exists "settings readable by team" on public.settings;
 create policy "settings readable by team"
   on public.settings for select
   using (auth.role() = 'authenticated');
 
--- Only admins (Ali / Rohaan) can edit settings
 drop policy if exists "settings writable by admins" on public.settings;
 create policy "settings writable by admins"
   on public.settings for update
-  using (
-    exists (
-      select 1 from public.profiles
-      where profiles.id = auth.uid() and profiles.role = 'admin'
-    )
-  );
+  using (public.current_user_role() = 'admin')
+  with check (public.current_user_role() = 'admin');
 
 -- ---------------------------------------------------------------
 -- Realtime: broadcast row changes so every open tab stays in sync
 -- ---------------------------------------------------------------
-alter publication supabase_realtime add table public.bids;
-alter publication supabase_realtime add table public.bid_logs;
-alter publication supabase_realtime add table public.settings;
+do $$ begin
+  alter publication supabase_realtime add table public.bids;
+exception when duplicate_object then null; end $$;
+do $$ begin
+  alter publication supabase_realtime add table public.bid_logs;
+exception when duplicate_object then null; end $$;
+do $$ begin
+  alter publication supabase_realtime add table public.settings;
+exception when duplicate_object then null; end $$;
+do $$ begin
+  alter publication supabase_realtime add table public.profiles;
+exception when duplicate_object then null; end $$;

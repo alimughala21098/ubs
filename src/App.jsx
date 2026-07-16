@@ -19,7 +19,7 @@ function Shell() {
   const { settings, saveSettings } = useSettings();
 
   const [view, setView] = useState('board');
-  const [filters, setFilters] = useState({ text: '', country: '', needsReview: false });
+  const [filters, setFilters] = useState({ text: '', country: '', bidder: '', needsReview: false });
   const [modalBidId, setModalBidId] = useState(undefined); // undefined = closed, null = new, id = edit
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -40,6 +40,11 @@ function Shell() {
     [bids]
   );
 
+  const bidders = useMemo(
+    () => Array.from(new Set(bids.map((b) => b.creator?.full_name).filter(Boolean))).sort(),
+    [bids]
+  );
+
   const filteredBids = useMemo(() => {
     const q = filters.text.trim().toLowerCase();
     return bids.filter((b) => {
@@ -48,6 +53,7 @@ function Shell() {
         if (!hay.includes(q)) return false;
       }
       if (filters.country && b.client_country !== filters.country) return false;
+      if (filters.bidder && b.creator?.full_name !== filters.bidder) return false;
       if (filters.needsReview && !b.needs_escalation) return false;
       return true;
     });
@@ -63,7 +69,7 @@ function Shell() {
       ok = await createBid(payload, user?.id);
     }
     if (ok && meta?.autoFlagged) {
-      showToast("Budget exceeds the escalation threshold — flagged for Ali's review.");
+      showToast('Budget exceeds the escalation threshold — flagged for admin review.');
     }
     if (ok) setModalBidId(undefined);
   }
@@ -93,7 +99,9 @@ function Shell() {
         onNewBid={() => setModalBidId(null)}
       />
 
-      {view === 'board' && <FilterBar filters={filters} setFilters={setFilters} countries={countries} />}
+      {view === 'board' && (
+        <FilterBar filters={filters} setFilters={setFilters} countries={countries} bidders={bidders} />
+      )}
 
       <main className="flex-1">
         {view === 'board' ? (

@@ -51,7 +51,9 @@ export function AuthProvider({ children }) {
     session,
     user: session?.user || null,
     profile,
+    role: profile?.role || null,
     isAdmin: profile?.role === 'admin',
+    isBidder: profile?.role === 'bidder',
     loading,
     signOut: () => supabase.auth.signOut()
   };

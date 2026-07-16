@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import EmployeeManager from './EmployeeManager';
 
 export default function SettingsModal({ settings, onClose, onSave }) {
   const { isAdmin } = useAuth();
+  const [tab, setTab] = useState('general');
   const [form, setForm] = useState(settings);
 
   useEffect(() => setForm(settings), [settings]);
@@ -28,7 +30,7 @@ export default function SettingsModal({ settings, onClose, onSave }) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-lg bg-surface border border-border rounded-2xl shadow-panel p-6 md:p-7">
+      <div className={'w-full bg-surface border border-border rounded-2xl shadow-panel p-6 md:p-7 ' + (isAdmin ? 'max-w-2xl' : 'max-w-lg')}>
         <div className="flex justify-between items-center mb-5">
           <h2 className="font-display text-xl font-semibold">Settings</h2>
           <button onClick={onClose} className="text-muted hover:text-danger text-xl leading-none p-1">
@@ -36,12 +38,40 @@ export default function SettingsModal({ settings, onClose, onSave }) {
           </button>
         </div>
 
+        {isAdmin && (
+          <div className="flex gap-1 mb-5 border border-border rounded-xl p-1 w-fit">
+            <button
+              type="button"
+              onClick={() => setTab('general')}
+              className={
+                'px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ' +
+                (tab === 'general' ? 'bg-accent text-white' : 'text-muted hover:text-white')
+              }
+            >
+              General
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab('team')}
+              className={
+                'px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ' +
+                (tab === 'team' ? 'bg-accent text-white' : 'text-muted hover:text-white')
+              }
+            >
+              Team
+            </button>
+          </div>
+        )}
+
         {!isAdmin && (
           <p className="text-xs text-warning bg-warning/10 border border-warning/30 rounded-lg px-3 py-2 mb-4">
-            Only Ali or Rohaan can save changes here — you can still view current values.
+            Only an admin can save changes here — you can still view current values.
           </p>
         )}
 
+        {tab === 'team' && isAdmin ? (
+          <EmployeeManager />
+        ) : (
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Field label="Monthly connects cap">
@@ -101,6 +131,7 @@ export default function SettingsModal({ settings, onClose, onSave }) {
             </button>
           </div>
         </form>
+        )}
       </div>
     </div>
   );

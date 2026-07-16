@@ -2,8 +2,10 @@ import React, { useMemo, useState } from 'react';
 import { STAGE_INDEX } from '../lib/constants';
 import { fmtMoney, daysSince } from '../lib/format';
 import { isStuck } from './BidCard';
+import { useAuth } from '../context/AuthContext';
 
 export default function Dashboard({ bids, commissionFor, settings }) {
+  const { isAdmin } = useAuth();
   const [range, setRange] = useState('30');
 
   const inRange = useMemo(() => {
@@ -44,6 +46,22 @@ export default function Dashboard({ bids, commissionFor, settings }) {
   const maxCount = Math.max(...buckets.map((b) => b.count), 1);
 
   const stuckList = bids.filter(isStuck);
+
+  const byBidder = useMemo(() => {
+    if (!isAdmin) return [];
+    const map = {};
+    inRange.forEach((b) => {
+      const name = b.creator?.full_name || 'Unassigned';
+      if (!map[name]) map[name] = { name, sent: 0, won: 0, lost: 0, wonValue: 0 };
+      map[name].sent += 1;
+      if (b.stage === 'won') {
+        map[name].won += 1;
+        map[name].wonValue += Number(b.budget) || 0;
+      }
+      if (b.stage === 'lost') map[name].lost += 1;
+    });
+    return Object.values(map).sort((a, b) => b.sent - a.sent);
+  }, [inRange, isAdmin]);
 
   return (
     <div className="px-6 md:px-8 py-6">
@@ -107,6 +125,46 @@ export default function Dashboard({ bids, commissionFor, settings }) {
           )}
         </div>
       </div>
+
+      {isAdmin && (
+        <div className="bg-surface border border-border rounded-2xl p-5 mt-4">
+          <h3 className="text-sm font-semibold mb-3">Performance by bidder</h3>
+          {byBidder.length === 0 ? (
+            <p className="text-xs text-muted">No bids in this range yet.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-left text-muted uppercase tracking-wide text-[10.5px] font-mono">
+                    <th className="pb-2 pr-4">Bidder</th>
+                    <th className="pb-2 pr-4">Sent</th>
+                    <th className="pb-2 pr-4">Won</th>
+                    <th className="pb-2 pr-4">Lost</th>
+                    <th className="pb-2 pr-4">Win rate</th>
+                    <th className="pb-2">Won value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {byBidder.map((row) => {
+                    const decided = row.won + row.lost;
+                    const rate = decided ? Math.round((row.won / decided) * 100) : 0;
+                    return (
+                      <tr key={row.name} className="border-t border-border">
+                        <td className="py-2 pr-4 font-medium text-white">{row.name}</td>
+                        <td className="py-2 pr-4 font-mono">{row.sent}</td>
+                        <td className="py-2 pr-4 font-mono text-success">{row.won}</td>
+                        <td className="py-2 pr-4 font-mono text-danger">{row.lost}</td>
+                        <td className="py-2 pr-4 font-mono">{rate}%</td>
+                        <td className="py-2 font-mono text-accent-light">{fmtMoney(row.wonValue)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,6 +1,9 @@
 import React from 'react';
+import { useAuth } from '../context/AuthContext';
 
-export default function FilterBar({ filters, setFilters, countries }) {
+export default function FilterBar({ filters, setFilters, countries, bidders }) {
+  const { isAdmin } = useAuth();
+
   return (
     <div className="sticky top-0 z-20 bg-surface border-b border-border px-6 md:px-8 py-3 flex flex-wrap items-center gap-3">
       <input
@@ -22,6 +25,20 @@ export default function FilterBar({ filters, setFilters, countries }) {
           </option>
         ))}
       </select>
+      {isAdmin && bidders && bidders.length > 1 && (
+        <select
+          value={filters.bidder}
+          onChange={(e) => setFilters((f) => ({ ...f, bidder: e.target.value }))}
+          className="bg-surface2 border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+        >
+          <option value="">All bidders</option>
+          {bidders.map((b) => (
+            <option key={b} value={b}>
+              {b}
+            </option>
+          ))}
+        </select>
+      )}
       <label
         className={
           'inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold cursor-pointer select-none transition-colors ' +

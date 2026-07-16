@@ -20,7 +20,10 @@ export function useBids() {
   const loadAll = useCallback(async () => {
     try {
       const [{ data: bidRows, error: bidErr }, { data: logRows, error: logErr }] = await Promise.all([
-        supabase.from('bids').select('*').order('created_at', { ascending: false }),
+        supabase
+          .from('bids')
+          .select('*, creator:created_by(full_name)')
+          .order('created_at', { ascending: false }),
         supabase.from('bid_logs').select('*').order('created_at', { ascending: false })
       ]);
       if (bidErr) throw bidErr;

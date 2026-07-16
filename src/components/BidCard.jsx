@@ -53,7 +53,7 @@ export default function BidCard({ bid, commission, onOpen, onDragStart, onDragEn
         <div className="text-sm font-semibold leading-snug text-white">{bid.job_title || 'Untitled job'}</div>
         <div className="flex gap-1 flex-shrink-0 mt-1">
           {bid.needs_escalation && (
-            <span className="w-2 h-2 rounded-full bg-accent-light" title="Needs Ali's input" />
+            <span className="w-2 h-2 rounded-full bg-accent-light" title="Needs admin review" />
           )}
           {followup && <span className="w-2 h-2 rounded-full bg-danger" title="Needs follow-up — no log in 24h" />}
           {stuck && <span className="w-2 h-2 rounded-full bg-warning" title="Stuck in negotiation 5+ days" />}
@@ -63,6 +63,7 @@ export default function BidCard({ bid, commission, onOpen, onDragStart, onDragEn
       <div className="text-xs text-muted mt-1">
         {bid.client || 'Unknown client'}
         {bid.client_country ? ` · ${bid.client_country}` : ''}
+        {bid.creator?.full_name ? ` · ${bid.creator.full_name}` : ''}
       </div>
 
       <div className="flex justify-between items-center mt-3 font-mono text-[11.5px]">
