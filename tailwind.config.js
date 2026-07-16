@@ -9,8 +9,8 @@ export default {
         surface2: '#1E1E1E',
         border: '#333333',
         accent: {
-          DEFAULT: '#2563EB',
-          light: '#29A7F2'
+          DEFAULT: '#6D5DFB',
+          light: '#8B7CFF'
         },
         success: '#22C55E',
         warning: '#F59E0B',

@@ -39,10 +39,12 @@ create table if not exists public.profiles (
   full_name text not null,
   email text,
   role user_role not null default 'bidder',
+  position text not null default 'Upwork Bidder (Probation)',
   created_at timestamptz not null default now()
 );
 
 alter table public.profiles add column if not exists email text;
+alter table public.profiles add column if not exists position text not null default 'Upwork Bidder (Probation)';
 
 -- Auto-create a profile row whenever a new auth user is created.
 -- Admin-created users (via the manage-employee edge function using
@@ -51,16 +53,17 @@ alter table public.profiles add column if not exists email text;
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin
-  insert into public.profiles (id, full_name, role, email)
+  insert into public.profiles (id, full_name, role, email, position)
   values (
     new.id,
     coalesce(new.raw_user_meta_data->>'full_name', new.email),
-    coalesce((new.raw_user_meta_data->>'role')::user_role, 'bidder'),
-    new.email
+    coalesce((new.raw_user_meta_data->>'role')::public.user_role, 'bidder'),
+    new.email,
+    coalesce(new.raw_user_meta_data->>'position', 'Upwork Bidder (Probation)')
   );
   return new;
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = public;
 
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created

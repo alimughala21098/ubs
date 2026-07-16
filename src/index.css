@@ -28,8 +28,8 @@ body {
 }
 
 @keyframes pulseAccent {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.35); }
-  50% { box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(109, 93, 251, 0.35); }
+  50% { box-shadow: 0 0 0 4px rgba(109, 93, 251, 0.12); }
 }
 .animate-pulse-accent {
   animation: pulseAccent 2.2s ease-in-out infinite;

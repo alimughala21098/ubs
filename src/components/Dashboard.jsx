@@ -66,7 +66,7 @@ export default function Dashboard({ bids, commissionFor, settings }) {
   return (
     <div className="px-6 md:px-8 py-6">
       <div className="flex justify-between items-baseline flex-wrap gap-3 mb-5">
-        <h2 className="font-display text-2xl font-semibold">Performance Dashboard</h2>
+        <h2 className="font-display text-2xl font-semibold">Analytics</h2>
         <select
           value={range}
           onChange={(e) => setRange(e.target.value)}

@@ -3,14 +3,16 @@ import { ToastProvider, useToast } from './context/ToastContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { useBids } from './hooks/useBids';
 import { useSettings } from './hooks/useSettings';
-import { currentMonthKey } from './lib/format';
 import Login from './components/Login';
-import Header from './components/Header';
+import Sidebar from './components/Sidebar';
 import FilterBar from './components/FilterBar';
 import Board from './components/Board';
+import Overview from './components/Overview';
+import Followups from './components/Followups';
 import Dashboard from './components/Dashboard';
+import SettingsPage from './components/SettingsPage';
 import BidModal from './components/BidModal';
-import SettingsModal from './components/SettingsModal';
+import { needsFollowUp } from './components/BidCard';
 
 function Shell() {
   const { user, loading: authLoading } = useAuth();
@@ -18,22 +20,13 @@ function Shell() {
   const { bids, createBid, updateBid, deleteBid, moveStage } = useBids();
   const { settings, saveSettings } = useSettings();
 
-  const [view, setView] = useState('board');
+  const [page, setPage] = useState('dashboard');
   const [filters, setFilters] = useState({ text: '', country: '', bidder: '', needsReview: false });
   const [modalBidId, setModalBidId] = useState(undefined); // undefined = closed, null = new, id = edit
-  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const commissionFor = (bid) => (Number(bid.budget) || 0) * (Number(settings.commission_rate_percent) || 0) / 100;
 
-  const connectsUsed = useMemo(() => {
-    const mk = currentMonthKey();
-    return bids.reduce((sum, b) => {
-      const submittedKey = b.date_submitted ? b.date_submitted.slice(0, 7) : null;
-      return sum + (submittedKey === mk ? Number(b.connects_spent) || 0 : 0);
-    }, 0);
-  }, [bids]);
-
-  const wonCount = bids.filter((b) => b.stage === 'won').length;
+  const followUpCount = useMemo(() => bids.filter(needsFollowUp).length, [bids]);
 
   const countries = useMemo(
     () => Array.from(new Set(bids.map((b) => b.client_country).filter(Boolean))).sort(),
@@ -80,6 +73,10 @@ function Shell() {
     if (ok) setModalBidId(undefined);
   }
 
+  function openBid(id) {
+    setModalBidId(id);
+  }
+
   if (authLoading) {
     return <div className="min-h-screen flex items-center justify-center text-muted text-sm">Loading…</div>;
   }
@@ -88,32 +85,53 @@ function Shell() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header
-        connectsUsed={connectsUsed}
-        settings={settings}
-        wonCount={wonCount}
-        view={view}
-        onToggleView={() => setView(view === 'board' ? 'dashboard' : 'board')}
-        onOpenSettings={() => setSettingsOpen(true)}
-        onNewBid={() => setModalBidId(null)}
-      />
+    <div className="min-h-screen flex">
+      <Sidebar page={page} onNavigate={setPage} followUpCount={followUpCount} />
 
-      {view === 'board' && (
-        <FilterBar filters={filters} setFilters={setFilters} countries={countries} bidders={bidders} />
-      )}
+      <div className="flex-1 flex flex-col min-w-0">
+        <div className="sticky top-0 z-20 bg-surface border-b border-border px-6 md:px-8 py-3.5 flex items-center gap-3 flex-wrap">
+          <input
+            type="text"
+            placeholder="Search bids, clients…"
+            value={filters.text}
+            onChange={(e) => setFilters((f) => ({ ...f, text: e.target.value }))}
+            className="flex-1 min-w-[200px] bg-surface2 border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+          />
+          <button
+            onClick={() => setModalBidId(null)}
+            className="px-4 py-2.5 rounded-xl text-sm font-semibold bg-accent hover:bg-accent-light transition-colors text-white whitespace-nowrap"
+          >
+            + Log New Bid
+          </button>
+        </div>
 
-      <main className="flex-1">
-        {view === 'board' ? (
-          <Board bids={filteredBids} commissionFor={commissionFor} onOpenBid={setModalBidId} onMoveStage={moveStage} />
-        ) : (
-          <Dashboard bids={bids} commissionFor={commissionFor} settings={settings} />
+        {page === 'pipeline' && (
+          <FilterBar filters={filters} setFilters={setFilters} countries={countries} bidders={bidders} />
         )}
-      </main>
 
-      <footer className="text-center text-[11px] font-mono text-muted py-5">
-        FAR Tech internal tool · shared team board · not client-facing
-      </footer>
+        <main className="flex-1 min-w-0">
+          {page === 'dashboard' && <Overview bids={bids} settings={settings} onOpenBid={openBid} />}
+          {page === 'pipeline' && (
+            <Board bids={filteredBids} commissionFor={commissionFor} onOpenBid={openBid} onMoveStage={moveStage} />
+          )}
+          {page === 'followups' && <Followups bids={bids} onOpenBid={openBid} />}
+          {page === 'analytics' && <Dashboard bids={bids} commissionFor={commissionFor} settings={settings} />}
+          {page === 'settings' && (
+            <SettingsPage
+              settings={settings}
+              onSave={async (next) => {
+                const ok = await saveSettings(next);
+                if (ok) showToast('Settings saved.');
+                return ok;
+              }}
+            />
+          )}
+        </main>
+
+        <footer className="text-center text-[11px] font-mono text-muted py-5">
+          FAR Tech internal tool · shared team board · not client-facing
+        </footer>
+      </div>
 
       {modalBidId !== undefined && (
         <BidModal
@@ -122,17 +140,6 @@ function Shell() {
           onClose={() => setModalBidId(undefined)}
           onSave={handleSaveBid}
           onDelete={handleDeleteBid}
-        />
-      )}
-
-      {settingsOpen && (
-        <SettingsModal
-          settings={settings}
-          onClose={() => setSettingsOpen(false)}
-          onSave={async (next) => {
-            const ok = await saveSettings(next);
-            if (ok) setSettingsOpen(false);
-          }}
         />
       )}
     </div>

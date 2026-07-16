@@ -107,7 +107,7 @@ edit the edge function.
 src/
   supabaseClient.js       Supabase client singleton
   context/
-    AuthContext.jsx       session + profile/role (isAdmin, isBidder)
+    AuthContext.jsx       session + profile/role/position (isAdmin, isBidder)
     ToastContext.jsx      toast notifications
   hooks/
     useBids.js             fetch + realtime subscribe + CRUD for bids/logs
@@ -115,25 +115,59 @@ src/
     useSettings.js         fetch + realtime subscribe + update for settings
   components/
     Login.jsx               sign-in only — no self-signup
-    EmployeeManager.jsx      admin-only: create / re-role / remove accounts
-    Header.jsx               brand, connects gauge, win stamps, primary actions
-    ConnectsGauge.jsx        semicircular connects gauge (amber at 70%, red at 90%)
-    WinStamps.jsx            probation win stamp row
-    FilterBar.jsx            search / country / bidder (admin-only) / needs-review filter
-    Board.jsx                kanban board, HTML5 drag-and-drop between stages
+    Sidebar.jsx              nav shell: Dashboard / Pipeline / Follow-ups / Analytics / Settings
+    Overview.jsx             Dashboard home: KPIs, follow-up/stuck alerts, recent bids,
+                             bidder's own connects gauge + win/target stamps
+    Followups.jsx            dedicated table of every bid needing a follow-up
+    Board.jsx                kanban board ("Pipeline"), HTML5 drag-and-drop between stages
     BidCard.jsx              card + escalation/follow-up/stuck indicators + bidder name
     BidModal.jsx             full bid create/edit form + communication log
-    SettingsModal.jsx        General tab (all) + Team tab (admin-only, wraps EmployeeManager)
-    Dashboard.jsx            response/interview/win rate, sparkline, financials,
-                             + admin-only "Performance by bidder" breakdown
+    FilterBar.jsx            search / country / bidder (admin-only) / needs-review filter
+    Dashboard.jsx            "Analytics" page: response/interview/win rate, sparkline,
+                             financials, admin-only "Performance by bidder" breakdown
+    SettingsPage.jsx         Employee Management tab (admin, default) + General Config tab
+    EmployeeManager.jsx      admin-only: create / re-role / reset password / remove accounts
+    ConnectsGauge.jsx        semicircular connects gauge (amber at 70%, red at 90%)
+    WinStamps.jsx            win/target stamp row, labeled "Probation wins" or "Monthly target"
   lib/
-    constants.js             stage list, follow-up rules, defaults
+    constants.js             stage list, position hierarchy, follow-up rules, defaults
     format.js                money/date formatting, day/hour math
 supabase/
   schema.sql                 tables, RLS, triggers, realtime
   functions/
-    manage-employee/index.ts  admin-only account create/re-role/remove
+    manage-employee/index.ts  admin-only account create/re-role/reset-password/remove
 ```
+
+## Positions
+
+Settings → Team lets an admin assign one of four positions when adding someone. Position is
+the HR-facing label; it also sets the underlying access role automatically:
+
+| Position | Access role | Notes |
+|---|---|---|
+| Admin | `admin` | Full access |
+| Upwork Bidder (Probation) | `bidder` | Sees "Probation wins" progress on their Dashboard |
+| Junior Upwork Bidder | `bidder` | Sees "Monthly target" progress instead — same widget, no probation framing |
+| Senior Upwork Bidder | `bidder` | Same as Junior |
+
+All three bidder positions currently share one team-wide target number
+(`probation_win_target` in Settings → General Config) — only the label changes based on
+whether the signed-in person is still in `Upwork Bidder (Probation)`. If you want a different
+number per position later, that's a small change to `useAuth().profile.position` +
+`Settings → General Config` (e.g. splitting into `probation_win_target` /
+`monthly_win_target` columns).
+
+## A note on employee passwords
+
+Settings → Team never stores or displays a teammate's password after the moment you set it.
+When you create an account, the password is shown once in a dismissible banner so you can copy
+it to the person — after that it's gone from the UI and unrecoverable from the database (Supabase
+never exposes plaintext passwords back out, by design). If someone needs to get back in, use the
+⟳ **Reset password** action next to their name, which sets a new one you can hand them (also
+shown only once). This is deliberately different from a persistent "credentials list" — keeping
+plaintext passwords sitting in a table means anyone with database or admin access gets everyone's
+login, indefinitely.
+
 
 ## Notes on judgment calls
 

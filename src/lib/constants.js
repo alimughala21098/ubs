@@ -27,3 +27,23 @@ export const DEFAULT_SETTINGS = {
   commission_rate_percent: 10,
   escalation_budget_threshold: 2000
 };
+
+// Employee position hierarchy (Settings -> Team).
+// "Admin" maps to role='admin' (full access); the three bidder positions
+// all map to role='bidder' (own-bids-only access) — position is just the
+// display/HR label and drives whether the "probation" framing shows.
+export const POSITIONS = [
+  { key: 'Admin', role: 'admin' },
+  { key: 'Upwork Bidder (Probation)', role: 'bidder', isProbation: true },
+  { key: 'Junior Upwork Bidder', role: 'bidder' },
+  { key: 'Senior Upwork Bidder', role: 'bidder' }
+];
+
+export const POSITION_ROLE = POSITIONS.reduce((acc, p) => {
+  acc[p.key] = p.role;
+  return acc;
+}, {});
+
+export function isProbationPosition(position) {
+  return POSITIONS.find((p) => p.key === position)?.isProbation === true;
+}

@@ -4,7 +4,7 @@ export default function ConnectsGauge({ used, cap }) {
   const remaining = Math.max(cap - used, 0);
   const pct = cap > 0 ? Math.min(used / cap, 1) : 0;
 
-  let color = '#2563EB'; // accent — normal
+  let color = '#6D5DFB'; // accent — normal
   let captionColor = 'text-muted';
   if (pct >= 0.9) {
     color = '#EF4444';

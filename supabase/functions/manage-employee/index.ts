@@ -69,10 +69,11 @@ Deno.serve(async (req) => {
       const email = (body.email || '').trim().toLowerCase();
       const password = body.password || '';
       const full_name = (body.full_name || '').trim();
+      const position = (body.position || '').trim();
       const role = body.role;
 
-      if (!email || !password || !full_name || !role) {
-        return json({ ok: false, error: 'Full name, email, password, and role are all required.' }, 400);
+      if (!email || !password || !full_name || !role || !position) {
+        return json({ ok: false, error: 'Full name, email, password, position, and role are all required.' }, 400);
       }
       if (!['admin', 'bidder'].includes(role)) {
         return json({ ok: false, error: 'Role must be "admin" or "bidder".' }, 400);
@@ -85,11 +86,11 @@ Deno.serve(async (req) => {
         email,
         password,
         email_confirm: true, // instant login, no confirmation email needed
-        user_metadata: { full_name, role }
+        user_metadata: { full_name, role, position }
       });
       if (error) return json({ ok: false, error: error.message }, 400);
 
-      return json({ ok: true, user: { id: data.user?.id, email, full_name, role } });
+      return json({ ok: true, user: { id: data.user?.id, email, full_name, role, position } });
     }
 
     if (action === 'update_role') {
@@ -101,6 +102,28 @@ Deno.serve(async (req) => {
         return json({ ok: false, error: "You can't change your own role." }, 400);
       }
       const { error } = await adminClient.from('profiles').update({ role }).eq('id', user_id);
+      if (error) return json({ ok: false, error: error.message }, 400);
+      return json({ ok: true });
+    }
+
+    if (action === 'update_position') {
+      const { user_id, position, role } = body;
+      if (!user_id || !position || !['admin', 'bidder'].includes(role)) {
+        return json({ ok: false, error: 'A valid user_id, position, and role are required.' }, 400);
+      }
+      if (user_id === user.id) {
+        return json({ ok: false, error: "You can't change your own position." }, 400);
+      }
+      const { error } = await adminClient.from('profiles').update({ position, role }).eq('id', user_id);
+      if (error) return json({ ok: false, error: error.message }, 400);
+      return json({ ok: true });
+    }
+
+    if (action === 'reset_password') {
+      const { user_id, password } = body;
+      if (!user_id || !password) return json({ ok: false, error: 'user_id and a new password are required.' }, 400);
+      if (password.length < 6) return json({ ok: false, error: 'Password must be at least 6 characters.' }, 400);
+      const { error } = await adminClient.auth.admin.updateUserById(user_id, { password });
       if (error) return json({ ok: false, error: error.message }, 400);
       return json({ ok: true });
     }

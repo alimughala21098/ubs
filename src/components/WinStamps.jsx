@@ -1,12 +1,12 @@
 import React from 'react';
 
-export default function WinStamps({ wins, target }) {
+export default function WinStamps({ wins, target, label = 'Probation wins' }) {
   const t = Math.max(target || 1, 1);
   const stamps = Array.from({ length: t }, (_, i) => i < wins);
 
   return (
     <div>
-      <div className="text-[10.5px] uppercase tracking-wide text-muted mb-2">Probation wins</div>
+      <div className="text-[10.5px] uppercase tracking-wide text-muted mb-2">{label}</div>
       <div className="flex gap-1.5 flex-wrap max-w-xs">
         {stamps.map((filled, i) => (
           <div
