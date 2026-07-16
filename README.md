@@ -40,7 +40,7 @@ account is created by an admin, and the person can sign in immediately
 4. Promote your own first login to `admin` once (every other account after
    that is created from inside the app):
    ```sql
-   update public.profiles set role = 'admin' where email = 'you@example.com';
+   update public.profiles set role = 'admin', position = 'Admin' where email = 'you@example.com';
    ```
    (You'll need to have signed in once already so the row exists — see
    step 3 below for the one manual first-user creation via the Supabase

@@ -67,7 +67,7 @@ function initials(name) {
 }
 
 export default function Sidebar({ page, onNavigate, followUpCount }) {
-  const { profile, signOut } = useAuth();
+  const { profile, isAdmin, signOut } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
 
   return (
@@ -129,7 +129,7 @@ export default function Sidebar({ page, onNavigate, followUpCount }) {
             {!collapsed && (
               <div className="min-w-0">
                 <div className="text-xs font-medium text-white truncate">{profile.full_name}</div>
-                <div className="text-[10.5px] text-muted truncate">{profile.position || profile.role}</div>
+                <div className="text-[10.5px] text-muted truncate">{isAdmin ? 'Admin' : profile.position || profile.role}</div>
               </div>
             )}
           </div>

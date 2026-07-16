@@ -289,7 +289,7 @@ export default function EmployeeManager() {
                         </div>
                         <div className="text-[11px] text-muted truncate">{p.email}</div>
                         <span className="inline-block mt-1 text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-accent/15 text-accent-light">
-                          {p.position || (p.role === 'admin' ? 'Admin' : 'Bidder')}
+                          {p.role === 'admin' ? 'Admin' : p.position || 'Bidder'}
                         </span>
                       </div>
                     </div>
