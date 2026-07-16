@@ -105,6 +105,7 @@ create table if not exists public.bids (
   stage bid_stage not null default 'lead',
   needs_escalation boolean not null default false,
   escalation_manual boolean not null default false,
+  escalation_status text not null default 'pending',
   notes text,
   created_by uuid references public.profiles(id) on delete set null,
   created_at timestamptz not null default now(),
@@ -120,6 +121,14 @@ do $$ begin
 exception when others then null; end $$;
 
 alter table public.bids add column if not exists escalation_manual boolean not null default false;
+alter table public.bids add column if not exists escalation_status text not null default 'pending';
+
+do $$ begin
+  alter table public.bids drop constraint if exists bids_escalation_status_check;
+  alter table public.bids
+    add constraint bids_escalation_status_check
+    check (escalation_status in ('pending', 'approved', 'declined'));
+exception when others then null; end $$;
 
 -- One-time backfill: bids flagged before escalation_manual existed are treated
 -- as manually flagged so they don't silently un-flag the first time someone

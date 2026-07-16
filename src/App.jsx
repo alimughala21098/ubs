@@ -17,7 +17,7 @@ import { needsFollowUp } from './components/BidCard';
 function Shell() {
   const { user, loading: authLoading } = useAuth();
   const { showToast } = useToast();
-  const { bids, createBid, updateBid, deleteBid, moveStage } = useBids();
+  const { bids, createBid, updateBid, deleteBid, moveStage, setEscalationStatus } = useBids();
   const { settings, saveSettings } = useSettings();
 
   const [page, setPage] = useState('dashboard');
@@ -140,6 +140,7 @@ function Shell() {
           onClose={() => setModalBidId(undefined)}
           onSave={handleSaveBid}
           onDelete={handleDeleteBid}
+          onReviewDecision={setEscalationStatus}
         />
       )}
     </div>

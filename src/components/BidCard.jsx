@@ -46,14 +46,36 @@ export default function BidCard({ bid, commission, onOpen, onDragStart, onDragEn
       }}
       className={
         'bg-surface2 border rounded-xl p-3 cursor-grab hover:shadow-panel transition-shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ' +
-        (bid.needs_escalation ? 'border-accent-light animate-pulse-accent' : 'border-border')
+        (bid.needs_escalation && bid.escalation_status !== 'declined'
+          ? bid.escalation_status === 'approved'
+            ? 'border-success'
+            : 'border-accent-light animate-pulse-accent'
+          : bid.needs_escalation
+            ? 'border-danger'
+            : 'border-border')
       }
     >
       <div className="flex justify-between items-start gap-2">
         <div className="text-sm font-semibold leading-snug text-white">{bid.job_title || 'Untitled job'}</div>
         <div className="flex gap-1 flex-shrink-0 mt-1">
           {bid.needs_escalation && (
-            <span className="w-2 h-2 rounded-full bg-accent-light" title="Needs admin review" />
+            <span
+              className={
+                'w-2 h-2 rounded-full ' +
+                (bid.escalation_status === 'approved'
+                  ? 'bg-success'
+                  : bid.escalation_status === 'declined'
+                    ? 'bg-danger'
+                    : 'bg-accent-light')
+              }
+              title={
+                bid.escalation_status === 'approved'
+                  ? 'Approved by admin'
+                  : bid.escalation_status === 'declined'
+                    ? 'Declined by admin'
+                    : 'Needs admin review'
+              }
+            />
           )}
           {followup && <span className="w-2 h-2 rounded-full bg-danger" title="Needs follow-up — no log in 24h" />}
           {stuck && <span className="w-2 h-2 rounded-full bg-warning" title="Stuck in negotiation 5+ days" />}
@@ -77,8 +99,21 @@ export default function BidCard({ bid, commission, onOpen, onDragStart, onDragEn
       {(bid.needs_escalation || followup || bid.stage === 'won') && (
         <div className="flex gap-1.5 flex-wrap mt-2">
           {bid.needs_escalation && (
-            <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-accent/15 text-accent-light">
-              Needs review
+            <span
+              className={
+                'text-[10px] font-mono uppercase px-2 py-0.5 rounded ' +
+                (bid.escalation_status === 'approved'
+                  ? 'bg-success/15 text-success'
+                  : bid.escalation_status === 'declined'
+                    ? 'bg-danger/15 text-danger'
+                    : 'bg-accent/15 text-accent-light')
+              }
+            >
+              {bid.escalation_status === 'approved'
+                ? 'Approved'
+                : bid.escalation_status === 'declined'
+                  ? 'Declined'
+                  : 'Needs review'}
             </span>
           )}
           {followup && (

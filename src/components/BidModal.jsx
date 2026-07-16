@@ -19,8 +19,8 @@ const emptyForm = {
   notes: ''
 };
 
-export default function BidModal({ bid, settings, onClose, onSave, onDelete }) {
-  const { profile } = useAuth();
+export default function BidModal({ bid, settings, onClose, onSave, onDelete, onReviewDecision }) {
+  const { profile, isAdmin } = useAuth();
   const [form, setForm] = useState(emptyForm);
   const [pendingLog, setPendingLog] = useState([]);
   const [logInput, setLogInput] = useState('');
@@ -69,6 +69,11 @@ export default function BidModal({ bid, settings, onClose, onSave, onDelete }) {
     const budget = Number(form.budget) || 0;
     const threshold = Number(settings.escalation_budget_threshold) || 0;
     const autoFlag = budget > 0 && budget < threshold;
+    const needsEscalation = form.escalation_manual || autoFlag;
+    // A decision (approved/declined) only applies to the review that earned it.
+    // If the bid wasn't flagged before and now is, that's a new review — reset
+    // to pending. If it was already flagged, leave whatever decision stands.
+    const isFreshlyFlagged = needsEscalation && !bid?.needs_escalation;
 
     const payload = {
       job_title: form.job_title.trim(),
@@ -83,10 +88,11 @@ export default function BidModal({ bid, settings, onClose, onSave, onDelete }) {
       stage: form.stage,
       proposal_template: form.proposal_template.trim(),
       escalation_manual: form.escalation_manual,
-      needs_escalation: form.escalation_manual || autoFlag,
+      needs_escalation: needsEscalation,
       notes: form.notes.trim(),
       pendingLog
     };
+    if (isFreshlyFlagged) payload.escalation_status = 'pending';
 
     onSave(payload, { autoFlagged: autoFlag && !form.escalation_manual });
   }
@@ -215,6 +221,41 @@ export default function BidModal({ bid, settings, onClose, onSave, onDelete }) {
                   too.
                 </p>
               )}
+
+              {bid?.needs_escalation && (
+                <div className="pl-6 flex items-center gap-3 mt-1">
+                  <StatusBadge status={bid.escalation_status} />
+                  {isAdmin && (
+                    <div className="flex gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => onReviewDecision(bid.id, 'approved')}
+                        disabled={bid.escalation_status === 'approved'}
+                        className="text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-success/15 text-success hover:bg-success/25 disabled:opacity-40 disabled:cursor-default"
+                      >
+                        Approve
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onReviewDecision(bid.id, 'declined')}
+                        disabled={bid.escalation_status === 'declined'}
+                        className="text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-danger/15 text-danger hover:bg-danger/25 disabled:opacity-40 disabled:cursor-default"
+                      >
+                        Decline
+                      </button>
+                      {bid.escalation_status !== 'pending' && (
+                        <button
+                          type="button"
+                          onClick={() => onReviewDecision(bid.id, 'pending')}
+                          className="text-[11px] font-medium px-2.5 py-1 rounded-lg text-muted hover:text-white"
+                        >
+                          Reset
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <Field label="Notes" full>
@@ -309,5 +350,19 @@ function Field({ label, children, full }) {
       <label className={labelCls}>{label}</label>
       {children}
     </div>
+  );
+}
+
+function StatusBadge({ status }) {
+  const map = {
+    pending: { text: 'Pending review', cls: 'bg-warning/15 text-warning' },
+    approved: { text: 'Approved', cls: 'bg-success/15 text-success' },
+    declined: { text: 'Declined', cls: 'bg-danger/15 text-danger' }
+  };
+  const s = map[status] || map.pending;
+  return (
+    <span className={'text-[11px] font-semibold uppercase tracking-wide px-2.5 py-1 rounded-full ' + s.cls}>
+      {s.text}
+    </span>
   );
 }

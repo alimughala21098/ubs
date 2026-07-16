@@ -110,6 +110,23 @@ export function useBids() {
     [updateBid, showToast]
   );
 
+  const setEscalationStatus = useCallback(
+    async (id, escalation_status) => {
+      const ok = await updateBid(id, { escalation_status }, { silent: true });
+      if (ok) {
+        showToast(
+          escalation_status === 'approved'
+            ? 'Bid approved.'
+            : escalation_status === 'declined'
+              ? 'Bid declined.'
+              : 'Review status reset.'
+        );
+      }
+      return ok;
+    },
+    [updateBid, showToast]
+  );
+
   const deleteBid = useCallback(
     async (id) => {
       try {
@@ -125,5 +142,5 @@ export function useBids() {
     [showToast]
   );
 
-  return { bids, loading, createBid, updateBid, deleteBid, moveStage, reload: loadAll };
+  return { bids, loading, createBid, updateBid, deleteBid, moveStage, setEscalationStatus, reload: loadAll };
 }
