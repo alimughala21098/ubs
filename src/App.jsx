@@ -62,7 +62,7 @@ function Shell() {
       ok = await createBid(payload, user?.id);
     }
     if (ok && meta?.autoFlagged) {
-      showToast('Budget exceeds the escalation threshold — flagged for admin review.');
+      showToast('Budget is below the escalation threshold — flagged for admin review.');
     }
     if (ok) setModalBidId(undefined);
   }

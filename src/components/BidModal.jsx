@@ -68,7 +68,7 @@ export default function BidModal({ bid, settings, onClose, onSave, onDelete }) {
     e.preventDefault();
     const budget = Number(form.budget) || 0;
     const threshold = Number(settings.escalation_budget_threshold) || 0;
-    const autoFlag = budget > threshold;
+    const autoFlag = budget > 0 && budget < threshold;
 
     const payload = {
       job_title: form.job_title.trim(),
@@ -208,10 +208,11 @@ export default function BidModal({ bid, settings, onClose, onSave, onDelete }) {
                   Flag for admin review
                 </label>
               </div>
-              {Number(form.budget) > (Number(settings.escalation_budget_threshold) || 0) && (
+              {Number(form.budget) > 0 && Number(form.budget) < (Number(settings.escalation_budget_threshold) || 0) && (
                 <p className="text-[11px] text-accent-light pl-6">
-                  Auto-flagged — budget exceeds the {fmtMoney(settings.escalation_budget_threshold)} threshold.
-                  This clears on its own if the budget drops back below it, unless you check the box above too.
+                  Auto-flagged — budget is below the {fmtMoney(settings.escalation_budget_threshold)} threshold.
+                  This clears on its own if the budget comes back up to or above it, unless you check the box above
+                  too.
                 </p>
               )}
             </div>

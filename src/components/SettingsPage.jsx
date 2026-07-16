@@ -92,7 +92,7 @@ export default function SettingsPage({ settings, onSave }) {
                 className={inputCls}
               />
             </Field>
-            <Field label="Escalation budget threshold (USD)">
+            <Field label="Escalation budget threshold (USD) — flags bids below this">
               <input
                 type="number"
                 min="0"
