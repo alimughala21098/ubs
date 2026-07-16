@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  background-color: #0F172A;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #333333 transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: #333333;
+  border-radius: 8px;
+}
+
+.font-display {
+  font-family: 'Poppins', system-ui, sans-serif;
+}
+
+@keyframes pulseAccent {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.35); }
+  50% { box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12); }
+}
+.animate-pulse-accent {
+  animation: pulseAccent 2.2s ease-in-out infinite;
+}
+
+.kanban-scroll {
+  scroll-snap-type: x proximity;
+}
