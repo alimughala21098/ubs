@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { STAGES } from '../lib/constants';
-import { fmtDateTime, todayISO } from '../lib/format';
+import { fmtDateTime, fmtMoney, todayISO } from '../lib/format';
 import { useAuth } from '../context/AuthContext';
 
 const emptyForm = {
@@ -15,7 +15,7 @@ const emptyForm = {
   date_submitted: todayISO(),
   stage: 'lead',
   proposal_template: '',
-  needs_escalation: false,
+  escalation_manual: false,
   notes: ''
 };
 
@@ -39,7 +39,7 @@ export default function BidModal({ bid, settings, onClose, onSave, onDelete }) {
         date_submitted: (bid.date_submitted || '').slice(0, 10) || todayISO(),
         stage: bid.stage || 'lead',
         proposal_template: bid.proposal_template || '',
-        needs_escalation: !!bid.needs_escalation,
+        escalation_manual: !!bid.escalation_manual,
         notes: bid.notes || ''
       });
     } else {
@@ -82,12 +82,13 @@ export default function BidModal({ bid, settings, onClose, onSave, onDelete }) {
       date_submitted: form.date_submitted || todayISO(),
       stage: form.stage,
       proposal_template: form.proposal_template.trim(),
-      needs_escalation: form.needs_escalation || autoFlag,
+      escalation_manual: form.escalation_manual,
+      needs_escalation: form.escalation_manual || autoFlag,
       notes: form.notes.trim(),
       pendingLog
     };
 
-    onSave(payload, { autoFlagged: autoFlag && !form.needs_escalation });
+    onSave(payload, { autoFlagged: autoFlag && !form.escalation_manual });
   }
 
   return (
@@ -194,17 +195,25 @@ export default function BidModal({ bid, settings, onClose, onSave, onDelete }) {
               />
             </Field>
 
-            <div className="md:col-span-2 flex items-center gap-2">
-              <input
-                id="needs-escalation"
-                type="checkbox"
-                checked={form.needs_escalation}
-                onChange={(e) => update('needs_escalation', e.target.checked)}
-                className="accent-accent"
-              />
-              <label htmlFor="needs-escalation" className="text-sm font-medium text-white">
-                Needs admin review
-              </label>
+            <div className="md:col-span-2 flex flex-col gap-1.5">
+              <div className="flex items-center gap-2">
+                <input
+                  id="needs-escalation"
+                  type="checkbox"
+                  checked={form.escalation_manual}
+                  onChange={(e) => update('escalation_manual', e.target.checked)}
+                  className="accent-accent"
+                />
+                <label htmlFor="needs-escalation" className="text-sm font-medium text-white">
+                  Flag for admin review
+                </label>
+              </div>
+              {Number(form.budget) > (Number(settings.escalation_budget_threshold) || 0) && (
+                <p className="text-[11px] text-accent-light pl-6">
+                  Auto-flagged — budget exceeds the {fmtMoney(settings.escalation_budget_threshold)} threshold.
+                  This clears on its own if the budget drops back below it, unless you check the box above too.
+                </p>
+              )}
             </div>
 
             <Field label="Notes" full>

@@ -104,6 +104,7 @@ create table if not exists public.bids (
   last_activity timestamptz not null default now(),
   stage bid_stage not null default 'lead',
   needs_escalation boolean not null default false,
+  escalation_manual boolean not null default false,
   notes text,
   created_by uuid references public.profiles(id) on delete set null,
   created_at timestamptz not null default now(),
@@ -117,6 +118,14 @@ do $$ begin
     add constraint bids_created_by_fkey
     foreign key (created_by) references public.profiles(id) on delete set null;
 exception when others then null; end $$;
+
+alter table public.bids add column if not exists escalation_manual boolean not null default false;
+
+-- One-time backfill: bids flagged before escalation_manual existed are treated
+-- as manually flagged so they don't silently un-flag the first time someone
+-- edits them (needs_escalation itself gets recomputed fresh from here on).
+update public.bids set escalation_manual = true
+where needs_escalation = true and escalation_manual = false;
 
 create index if not exists bids_stage_idx on public.bids (stage);
 create index if not exists bids_date_submitted_idx on public.bids (date_submitted);
