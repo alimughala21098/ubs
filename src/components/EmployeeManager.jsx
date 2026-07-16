@@ -46,8 +46,21 @@ export default function EmployeeManager() {
   async function callManageEmployee(body) {
     const { data, error } = await supabase.functions.invoke('manage-employee', { body });
     if (error) {
-      // Try to surface the function's own error message when available
-      const msg = data?.error || error.message || 'Request failed.';
+      // supabase-js's FunctionsHttpError.message is just a generic
+      // "Edge Function returned a non-2xx status code" — the actual
+      // { ok: false, error: "..." } body it sent back lives on
+      // error.context (the raw Response object) and has to be parsed
+      // separately.
+      let msg = error.message || 'Request failed.';
+      if (error.context && typeof error.context.json === 'function') {
+        try {
+          const parsed = await error.context.json();
+          if (parsed?.error) msg = parsed.error;
+        } catch (_) {
+          // Body wasn't JSON (e.g. the function isn't deployed, or crashed
+          // before returning JSON) — fall back to the generic message above.
+        }
+      }
       throw new Error(msg);
     }
     if (data?.ok === false) throw new Error(data.error || 'Request failed.');
